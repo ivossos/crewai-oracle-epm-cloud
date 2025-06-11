@@ -9,8 +9,12 @@ from pathlib import Path
 import yaml
 import os
 
-# Load Claude model
-claude = ChatAnthropic(model="claude-opus-4-20250514")
+# Load Claude model with error handling
+try:
+    claude = ChatAnthropic(model="claude-3-sonnet-20240229")
+except Exception as e:
+    print(f"Failed to initialize Claude model: {e}")
+    claude = None
 
 CONFIG_PATH = Path(__file__).parent / "config"
 
@@ -19,6 +23,8 @@ def load_yaml(filename):
         return yaml.safe_load(f)
 
 def create_agents(agent_configs):
+    if claude is None:
+        print("Warning: Claude model not initialized, using default LLM")
     return [
         Agent(
             role=cfg["role"],
@@ -26,7 +32,7 @@ def create_agents(agent_configs):
             backstory=cfg["backstory"],
             verbose=True,
             memory=True,
-            llm=claude  # 👈 This is where we inject Claude
+            llm=claude if claude else None
         ) for cfg in agent_configs.values()
     ]
 

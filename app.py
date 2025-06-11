@@ -8,12 +8,17 @@ from oracle_epm_support.crew import build_crew
 from flask import Flask, request, render_template_string
 
 # Configure CrewAI to use Anthropic
-os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
-os.environ["OPENAI_MODEL_NAME"] = "claude-3-sonnet-20240229"
-os.environ["OPENAI_API_BASE"] = "https://api.anthropic.com"
+os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY", "")
 
 app = Flask(__name__)
-crew = build_crew()
+
+# Initialize crew with error handling
+try:
+    crew = build_crew()
+    print("✅ Crew initialized successfully")
+except Exception as e:
+    print(f"❌ Failed to initialize crew: {e}")
+    crew = None
 
 HTML = """
 <!doctype html>
@@ -32,9 +37,14 @@ HTML = """
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
-    if request.method == 'POST':
-        problem = request.form['problem']
-        result = crew.kickoff(inputs={"problem": problem})
+    if request.method == 'POST' and crew is not None:
+        try:
+            problem = request.form['problem']
+            result = crew.kickoff(inputs={"problem": problem})
+        except Exception as e:
+            result = f"Error processing request: {str(e)}"
+    elif request.method == 'POST' and crew is None:
+        result = "Service temporarily unavailable. Please check configuration."
     return render_template_string(HTML, result=result)
 
 if __name__ == '__main__':
