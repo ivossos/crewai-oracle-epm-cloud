@@ -9,8 +9,8 @@ from pathlib import Path
 import yaml
 import os
 
-# Load Claude model (choose Sonnet or Opus depending on your plan)
-claude = ChatAnthropic(model="claude-3-sonnet-20240229")  # or "claude-3-opus-20240229"
+# Load Claude model
+claude = ChatAnthropic(model="claude-opus-4-20250514")
 
 CONFIG_PATH = Path(__file__).parent / "config"
 
