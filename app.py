@@ -7,8 +7,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from oracle_epm_support.crew import build_crew
 from flask import Flask, request, render_template_string
 
-# Use environment variable
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+# Configure CrewAI to use Anthropic
+os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
+os.environ["OPENAI_MODEL_NAME"] = "claude-3-sonnet-20240229"
+os.environ["OPENAI_API_BASE"] = "https://api.anthropic.com"
 
 app = Flask(__name__)
 crew = build_crew()
