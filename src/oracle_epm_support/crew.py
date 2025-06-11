@@ -11,7 +11,7 @@ import os
 
 # Load Claude model with error handling
 try:
-    claude = ChatAnthropic(model="claude-3-sonnet-20240229")
+    claude = ChatAnthropic(model="claude-opus-4-20250514")
 except Exception as e:
     print(f"Failed to initialize Claude model: {e}")
     claude = None
