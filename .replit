@@ -1,14 +1,12 @@
-language = "python3"
-entrypoint = "app.py"
+modules = ["python-3.10:v18-20230807-322e88b"]
 
-[workflows]
-runButton = "Run"
+run = ["python3", "app.py"]
 
-[[workflows.workflow]]
-name = "Run"
-author = 29295454
-mode = "sequential"
+[nix]
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python app.py"
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[deployment]
+deploymentTarget = "cloudrun"

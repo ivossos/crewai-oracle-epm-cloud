@@ -1,0 +1,42 @@
+from crewai import Agent, Task, Crew, Process
+from pathlib import Path
+import yaml
+
+CONFIG_PATH = Path(__file__).parent / "config"
+
+def load_yaml(filename):
+    with open(CONFIG_PATH / filename, "r") as f:
+        return yaml.safe_load(f)
+
+def create_agents(agent_configs):
+    return [
+        Agent(
+            role=cfg["role"],
+            goal=cfg["goal"],
+            backstory=cfg["backstory"],
+            verbose=True,
+            memory=True
+        ) for cfg in agent_configs.values()
+    ]
+
+def create_tasks(task_configs, agents):
+    return [
+        Task(
+            description=cfg["description"],
+            expected_output=cfg["expected_output"],
+            agent=agents[i]
+        ) for i, cfg in enumerate(task_configs.values())
+    ]
+
+def build_crew():
+    agents_config = load_yaml("agents.yaml")
+    tasks_config = load_yaml("tasks.yaml")
+
+    agents = create_agents(agents_config)
+    tasks = create_tasks(tasks_config, agents)
+
+    return Crew(
+        agents=agents,
+        tasks=tasks,
+        process=Process.sequential
+    )

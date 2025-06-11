@@ -1,0 +1,34 @@
+fccs_support_task:
+  description: >
+    The user is facing an issue in FCCS. Analyze the problem and provide guidance.
+    Problem: {problem}
+  expected_output: >
+    A clear explanation of what might be causing the issue in FCCS, and a step-by-step suggestion to resolve it.
+
+epbcs_support_task:
+  description: >
+    The user is facing an issue in EPBCS. Use your expertise to evaluate the scenario and suggest a fix.
+    Problem: {problem}
+  expected_output: >
+    Summary of likely causes and how to fix the issue, including rules or model adjustments.
+
+workforce_support_task:
+  description: >
+    Analyze the issue the user is experiencing in Workforce Planning and offer improvements or corrections.
+    Problem: {problem}
+  expected_output: >
+    Suggested changes to workforce model setup, including logic or metadata structure.
+
+essbase_support_task:
+  description: >
+    Investigate the user’s Essbase issue and provide advice to fix or optimize it.
+    Problem: {problem}
+  expected_output: >
+    A technical breakdown of the problem and ways to improve performance or fix errors.
+
+freeform_support_task:
+  description: >
+    The user has a modeling or configuration issue in a Free Form Planning application.
+    Problem: {problem}
+  expected_output: >
+    Step-by-step guidance on resolving the Free Form model issue, including setup or structural fixes.
