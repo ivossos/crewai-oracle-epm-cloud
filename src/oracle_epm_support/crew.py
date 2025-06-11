@@ -1,6 +1,16 @@
 from crewai import Agent, Task, Crew, Process
+
+from langchain_anthropic import ChatAnthropic
+
+
+
 from pathlib import Path
+
 import yaml
+import os
+
+# Load Claude model (choose Sonnet or Opus depending on your plan)
+claude = ChatAnthropic(model="claude-3-sonnet-20240229")  # or "claude-3-opus-20240229"
 
 CONFIG_PATH = Path(__file__).parent / "config"
 
@@ -15,7 +25,8 @@ def create_agents(agent_configs):
             goal=cfg["goal"],
             backstory=cfg["backstory"],
             verbose=True,
-            memory=True
+            memory=True,
+            llm=claude  # 👈 This is where we inject Claude
         ) for cfg in agent_configs.values()
     ]
 
@@ -34,6 +45,10 @@ def build_crew():
 
     agents = create_agents(agents_config)
     tasks = create_tasks(tasks_config, agents)
+
+    # Optional: print for debug
+    print("🧠 Agents loaded:", [a.role for a in agents])
+    print("🛠 Tasks created:", [t.description[:50] for t in tasks])
 
     return Crew(
         agents=agents,
