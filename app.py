@@ -9,7 +9,9 @@ from io import BytesIO
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from oracle_epm_support.crew import build_crew
-from flask import Flask, request, render_template_string, make_response
+from flask import Flask, request, render_template_string, send_from_directory
+import os
+import sys
 from rag_knowledge_manager import RAGKnowledgeManager
 
 # Configure CrewAI to use Anthropic
@@ -17,6 +19,12 @@ os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY", "")
 
 app = Flask(__name__)
 
+# Static file serving
+@app.route('/static/<filename>')
+def static_files(filename):
+    return send_from_directory('attached_assets', filename)
+
+# Configuration
 # RAG Knowledge Base - Oracle EPM Documentation and Common Issues
 KNOWLEDGE_BASE = {
     "fccs_issues": [
@@ -112,7 +120,7 @@ def search_knowledge_base(query, max_results=3):
     """Search the knowledge base for relevant documents based on query keywords"""
     query_lower = query.lower()
     results = []
-    
+
     # Search through all categories
     for category, documents in KNOWLEDGE_BASE.items():
         for doc in documents:
@@ -120,23 +128,23 @@ def search_knowledge_base(query, max_results=3):
             # Check title match
             if any(word in doc['title'].lower() for word in query_lower.split()):
                 score += 3
-            
+
             # Check keyword match
             for keyword in doc['keywords']:
                 if keyword in query_lower:
                     score += 2
-            
+
             # Check content match
             if any(word in doc['content'].lower() for word in query_lower.split() if len(word) > 3):
                 score += 1
-            
+
             if score > 0:
                 results.append({
                     'doc': doc,
                     'score': score,
                     'category': category
                 })
-    
+
     # Sort by relevance score and return top results
     results.sort(key=lambda x: x['score'], reverse=True)
     return results[:max_results]
@@ -148,21 +156,21 @@ def extract_text_from_pdf(pdf_file):
         pdf_content = pdf_file.read()
         if len(pdf_content) == 0:
             raise ValueError("PDF file is empty")
-        
+
         pdf_reader = PyPDF2.PdfReader(BytesIO(pdf_content))
-        
+
         # Check if PDF is encrypted
         if pdf_reader.is_encrypted:
             raise ValueError("PDF is password protected and cannot be read")
-        
+
         # Check number of pages
         num_pages = len(pdf_reader.pages)
         if num_pages == 0:
             raise ValueError("PDF contains no pages")
-        
+
         text_content = ""
         pages_with_text = 0
-        
+
         for page_num in range(num_pages):
             try:
                 page = pdf_reader.pages[page_num]
@@ -173,12 +181,12 @@ def extract_text_from_pdf(pdf_file):
             except Exception as page_error:
                 print(f"Warning: Could not extract text from page {page_num + 1}: {page_error}")
                 continue
-        
+
         if pages_with_text == 0:
             raise ValueError(f"No readable text found in any of the {num_pages} pages. PDF may contain only images or scanned content.")
-        
+
         return text_content.strip()
-        
+
     except Exception as e:
         raise Exception(f"PDF processing failed: {str(e)}")
 
@@ -186,7 +194,7 @@ def format_rag_context(search_results):
     """Format search results into context for the AI agents"""
     if not search_results:
         return ""
-    
+
     context = "\n=== RELEVANT KNOWLEDGE BASE ARTICLES ===\n"
     for i, result in enumerate(search_results, 1):
         doc = result['doc']
@@ -194,7 +202,7 @@ def format_rag_context(search_results):
         context += f"   ID: {doc['id']}\n"
         context += f"   Content: {doc['content']}\n"
         context += f"   Relevance Score: {result['score']}\n"
-    
+
     context += "\n=== END KNOWLEDGE BASE ===\n"
     context += "Please reference these articles when relevant to the user's question.\n\n"
     return context
@@ -202,13 +210,13 @@ def format_rag_context(search_results):
 # Initialize PostgreSQL RAG manager
 try:
     db_rag_manager = RAGKnowledgeManager()
-    
+
     # Import existing knowledge base if database is empty
     existing_articles = db_rag_manager.get_all_articles()
     if not existing_articles:
         print("📚 Importing existing knowledge base to PostgreSQL...")
         db_rag_manager.import_from_knowledge_base(KNOWLEDGE_BASE)
-    
+
     print(f"✅ PostgreSQL RAG system initialized with {len(db_rag_manager.get_all_articles())} articles")
 except Exception as e:
     print(f"❌ Failed to initialize PostgreSQL RAG: {e}")
@@ -452,7 +460,7 @@ HTML = """
             color: #66ff66;
         }
 
-        
+
 
         .nav-link:hover {
             background: rgba(0, 255, 0, 0.1) !important;
@@ -482,7 +490,7 @@ HTML = """
                 margin-bottom: 20px;
             }
 
-            
+
         }
     </style>
     <script>
@@ -492,14 +500,14 @@ HTML = """
             const progressContainer = document.getElementById('progress-container');
             const progressText = document.getElementById('progress-text');
             const progressSteps = document.getElementById('progress-steps');
-            
+
             // Disable submit button
             submitBtn.disabled = true;
             submitBtn.value = 'Processing...';
-            
+
             // Show progress bar
             progressContainer.style.display = 'block';
-            
+
             // Progress messages
             const steps = [
                 'Initializing AI agents...',
@@ -513,7 +521,7 @@ HTML = """
                 'Compiling comprehensive response...',
                 'Finalizing recommendations...'
             ];
-            
+
             let currentStep = 0;
             const stepInterval = setInterval(() => {
                 if (currentStep < steps.length) {
@@ -526,11 +534,11 @@ HTML = """
                     progressSteps.textContent = 'Preparing final response';
                 }
             }, 1000);
-            
+
             return true;
         }
 
-        
+
     </script>
 </head>
 <body>
@@ -563,7 +571,7 @@ HTML = """
                                   placeholder="Describe your Oracle EPM issue in detail. Include module (FCCS, EPBCS, Essbase, etc.), error messages, and what you were trying to accomplish..."
                                   required>{{ request.form.problem or '' }}</textarea>
                     </div>
-                    
+
                     <input type="submit" id="submit-btn" value="Get AI-Powered Help">
                 </form>
 
@@ -647,6 +655,12 @@ HTML = """
             </div>
         </div>
     </div>
+
+    <footer style="background: #1a1a1a; border-top: 1px solid #00ff00; padding: 20px; text-align: center; margin-top: 40px; color: #666;">
+        <p style="margin: 0; font-size: 0.9em;">
+            © 2024 CloseWise. All rights reserved. | AI-powered Oracle EPM Support Assistant
+        </p>
+    </footer>
 </body>
 </html>
 """
@@ -655,17 +669,17 @@ HTML = """
 def download_results(format):
     """Download the last result in specified format"""
     global last_result_data
-    
+
     if not hasattr(download_results, 'last_result') or not download_results.last_result:
         return "No results available for download", 404
-    
+
     result_data = download_results.last_result
-    
+
     if format == 'txt':
         response = make_response(result_data['content'])
         response.headers['Content-Type'] = 'text/plain'
         response.headers['Content-Disposition'] = f'attachment; filename="oracle_epm_analysis_{result_data["timestamp"]}.txt"'
-        
+
     elif format == 'json':
         import json
         json_data = {
@@ -678,7 +692,7 @@ def download_results(format):
         response = make_response(json.dumps(json_data, indent=2))
         response.headers['Content-Type'] = 'application/json'
         response.headers['Content-Disposition'] = f'attachment; filename="oracle_epm_analysis_{result_data["timestamp"]}.json"'
-        
+
     elif format == 'html':
         html_content = f"""
         <!DOCTYPE html>
@@ -709,10 +723,10 @@ def download_results(format):
         response = make_response(html_content)
         response.headers['Content-Type'] = 'text/html'
         response.headers['Content-Disposition'] = f'attachment; filename="oracle_epm_analysis_{result_data["timestamp"]}.html"'
-    
+
     else:
         return "Invalid format. Use: txt, json, or html", 400
-    
+
     return response
 
 @app.route('/rag-dashboard')
@@ -723,13 +737,13 @@ def rag_dashboard():
             total_articles = len(db_rag_manager.get_all_articles())
         else:
             total_articles = sum(len(docs) for docs in KNOWLEDGE_BASE.values())
-        
+
         # Mock data for demo - you can replace with real data
         recent_uploads = [
             {"filename": "EPM_Planning_Guide.pdf", "timestamp": "2024-01-15 10:30", "status": "✅ Processed"},
             {"filename": "FCCS_Troubleshooting.pdf", "timestamp": "2024-01-14 15:45", "status": "✅ Processed"}
         ]
-        
+
         return render_template_string(open('templates/rag_dashboard.html').read(), 
                                     total_articles=total_articles,
                                     processed_pdfs=5,
@@ -744,16 +758,16 @@ def rag_upload():
     try:
         if 'pdf_files' not in request.files:
             return {"success": False, "error": "No files uploaded"}, 400
-        
+
         files = request.files.getlist('pdf_files')
         processed_count = 0
-        
+
         for file in files:
             if file and file.filename and file.filename.endswith('.pdf'):
                 try:
                     # Extract text from PDF
                     pdf_text = extract_text_from_pdf(file)
-                    
+
                     # Add to knowledge base if we have DB manager
                     if db_rag_manager:
                         db_rag_manager.add_article(
@@ -763,16 +777,16 @@ def rag_upload():
                             keywords=["uploaded", "pdf", "document"],
                             category="uploaded_docs"
                         )
-                    
+
                     processed_count += 1
                     print(f"✅ Processed: {file.filename}")
-                    
+
                 except Exception as e:
                     print(f"❌ Error processing {file.filename}: {e}")
                     continue
-        
+
         return {"success": True, "processed": processed_count}
-        
+
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
 
@@ -793,7 +807,7 @@ def knowledge_base():
                         'content': doc['content'][:200] + '...',
                         'category': category
                     })
-        
+
         return render_template_string('''
         <h1>Knowledge Base</h1>
         <p>Total Articles: {{ articles|length }}</p>
@@ -806,7 +820,7 @@ def knowledge_base():
         {% endfor %}
         <a href="/">← Back to Main</a>
         ''', articles=articles)
-        
+
     except Exception as e:
         return f"Error loading knowledge base: {str(e)}", 500
 
@@ -816,12 +830,12 @@ def index():
     rag_results = None
     pdf_content = None
     pdf_status = None
-    
+
     if request.method == 'POST' and request.form.get('problem') and crew is not None:
         try:
             problem = request.form['problem']
             print(f"🔄 Processing request: {problem[:100]}...")
-            
+
             # Handle PDF upload if provided
             pdf_text = ""
             pdf_status = None
@@ -845,50 +859,50 @@ def index():
                             print(f"❌ PDF processing error: {pdf_error}")
                             pdf_content = f"❌ Error processing PDF '{pdf_file.filename}': {str(pdf_error)}"
                             pdf_status = "error"
-            
+
             # Search knowledge base for relevant information
             search_query = f"{problem} {pdf_text[:200]}" if pdf_text else problem
-            
+
             # Use PostgreSQL RAG if available, fallback to in-memory search
             if db_rag_manager:
                 db_results = db_rag_manager.search_articles(search_query)
                 rag_results = [{'doc': r['article'], 'score': r['score'], 'category': r['article']['category']} for r in db_results]
             else:
                 rag_results = search_knowledge_base(search_query)
-            
+
             rag_context = format_rag_context(rag_results)
-            
+
             print(f"🔍 RAG Search found {len(rag_results)} relevant articles")
-            
+
             # Combine user problem with RAG context and PDF content
             enhanced_problem = f"{rag_context}\nUSER PROBLEM: {problem}"
             if pdf_text:
                 enhanced_problem += f"\n\nUPLOADED PDF CONTENT:\n{pdf_text}\n"
-            
+
             print("🤖 Starting AI agent processing...")
-            
+
             # Process with AI agents with timeout handling
             try:
                 import threading
                 import time
-                
+
                 result_container = [None]
                 error_container = [None]
-                
+
                 def ai_worker():
                     try:
                         result_container[0] = crew.kickoff(inputs={"problem": enhanced_problem})
                     except Exception as e:
                         error_container[0] = e
-                
+
                 # Start AI processing in separate thread
                 ai_thread = threading.Thread(target=ai_worker)
                 ai_thread.daemon = True
                 ai_thread.start()
-                
+
                 # Wait for completion with 5-minute timeout
                 ai_thread.join(timeout=300)
-                
+
                 if ai_thread.is_alive():
                     result = "⏰ Request timeout: The AI agents took too long to process your request. Please try again with a more specific question or contact support."
                     print("⏰ AI processing timeout occurred")
@@ -897,11 +911,11 @@ def index():
                 else:
                     result = result_container[0]
                     print("✅ AI processing completed successfully")
-                
+
             except Exception as ai_error:
                 result = f"🤖 AI Processing Error: {str(ai_error)}\n\nPlease try again or contact support if the issue persists."
                 print(f"❌ AI processing error: {ai_error}")
-            
+
             # Store result for download
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             download_results.last_result = {
@@ -911,13 +925,13 @@ def index():
                 'rag_results': [{'doc': r['doc'], 'score': r['score']} for r in rag_results] if rag_results else [],
                 'pdf_content': pdf_content or ''
             }
-            
+
         except Exception as e:
             result = f"❌ System Error: {str(e)}\n\nPlease check your input and try again."
             print(f"❌ System error: {e}")
     elif request.method == 'POST' and request.form.get('problem') and crew is None:
         result = "Service temporarily unavailable. Please check configuration."
-    
+
     return render_template_string(HTML, result=result, rag_results=rag_results, pdf_content=pdf_content, pdf_status=pdf_status, request=request)
 
 
