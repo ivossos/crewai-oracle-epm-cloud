@@ -525,6 +525,34 @@ HTML = """
             transform: scale(1.1);
         }
 
+        .upload-button {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 20px 25px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            min-width: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.2);
+        }
+
+        .upload-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+            background: linear-gradient(135deg, #218838 0%, #1ea97c 100%);
+        }
+
+        .upload-button:active {
+            transform: translateY(0);
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 10px;
@@ -559,6 +587,19 @@ HTML = """
 
             .upload-text {
                 font-size: 1em;
+            }
+
+            /* Stack upload elements vertically on mobile */
+            div[style*="display: flex"] {
+                flex-direction: column !important;
+                gap: 10px !important;
+            }
+
+            .upload-button {
+                min-width: auto;
+                width: 100%;
+                padding: 15px 20px;
+                font-size: 14px;
             }
         }
     </style>
@@ -621,6 +662,12 @@ HTML = """
                 if (!fileInput.files.length) {
                     fileInput.click();
                 }
+            });
+
+            // Upload button click handler
+            const uploadBtn = document.getElementById('upload-btn');
+            uploadBtn.addEventListener('click', () => {
+                fileInput.click();
             });
 
             // Drag and drop events
@@ -702,23 +749,28 @@ HTML = """
                         <label for="pdf-upload" style="display: block; margin-bottom: 15px; font-weight: 500; color: #333;">
                             📄 Upload PDF Document (Optional)
                         </label>
-                        <div id="drop-zone" class="upload-zone">
-                            <div class="upload-content">
-                                <div class="upload-icon">📄</div>
-                                <div class="upload-text">
-                                    <strong>Drag & Drop PDF here</strong>
-                                    <br>or click to browse files
+                        <div style="display: flex; gap: 15px; align-items: stretch;">
+                            <div id="drop-zone" class="upload-zone" style="flex: 1;">
+                                <div class="upload-content">
+                                    <div class="upload-icon">📄</div>
+                                    <div class="upload-text">
+                                        <strong>Drag & Drop PDF here</strong>
+                                        <br>or click to browse files
+                                    </div>
+                                    <input type="file" 
+                                           id="pdf-upload" 
+                                           name="pdf_file" 
+                                           accept=".pdf"
+                                           style="display: none;">
                                 </div>
-                                <input type="file" 
-                                       id="pdf-upload" 
-                                       name="pdf_file" 
-                                       accept=".pdf"
-                                       style="display: none;">
+                                <div id="file-info" class="file-info" style="display: none;">
+                                    <span id="file-name"></span>
+                                    <button type="button" id="remove-file" class="remove-btn">×</button>
+                                </div>
                             </div>
-                            <div id="file-info" class="file-info" style="display: none;">
-                                <span id="file-name"></span>
-                                <button type="button" id="remove-file" class="remove-btn">×</button>
-                            </div>
+                            <button type="button" id="upload-btn" class="upload-button">
+                                📁 Choose PDF File
+                            </button>
                         </div>
                         <small style="color: #666; margin-top: 10px; display: block;">
                             Upload Oracle EPM documentation, error logs, or related PDF files for analysis
