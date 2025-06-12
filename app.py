@@ -2,6 +2,8 @@ import os
 import sys
 import json
 from datetime import datetime
+import PyPDF2
+from io import BytesIO
 
 # 👇 This tells Python to look inside 'src/'
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -137,6 +139,20 @@ def search_knowledge_base(query, max_results=3):
     # Sort by relevance score and return top results
     results.sort(key=lambda x: x['score'], reverse=True)
     return results[:max_results]
+
+def extract_text_from_pdf(pdf_file):
+    """Extract text content from uploaded PDF file"""
+    try:
+        pdf_reader = PyPDF2.PdfReader(BytesIO(pdf_file.read()))
+        text_content = ""
+        
+        for page_num in range(len(pdf_reader.pages)):
+            page = pdf_reader.pages[page_num]
+            text_content += page.extract_text() + "\n"
+        
+        return text_content.strip()
+    except Exception as e:
+        return f"Error reading PDF: {str(e)}"
 
 def format_rag_context(search_results):
     """Format search results into context for the AI agents"""
@@ -461,11 +477,24 @@ HTML = """
         <div class="content">
             <div class="section">
                 <h2>Oracle EPM Problem Solver</h2>
-                <form id="epm-form" method="post" action="/" onsubmit="return showProgress()">
+                <form id="epm-form" method="post" action="/" enctype="multipart/form-data" onsubmit="return showProgress()">
                     <div class="form-group">
                         <textarea name="problem" 
                                   placeholder="Describe your Oracle EPM issue in detail. Include module (FCCS, EPBCS, Essbase, etc.), error messages, and what you were trying to accomplish..."
                                   required>{{ request.form.problem or '' }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="pdf-upload" style="display: block; margin-bottom: 10px; font-weight: 500; color: #333;">
+                            📄 Upload PDF Document (Optional)
+                        </label>
+                        <input type="file" 
+                               id="pdf-upload" 
+                               name="pdf_file" 
+                               accept=".pdf"
+                               style="width: 100%; padding: 10px; border: 2px dashed #667eea; border-radius: 10px; background: rgba(102, 126, 234, 0.05);">
+                        <small style="color: #666; margin-top: 5px; display: block;">
+                            Upload Oracle EPM documentation, error logs, or related PDF files for analysis
+                        </small>
                     </div>
                     <input type="submit" id="submit-btn" value="Get AI-Powered Help">
                 </form>
@@ -501,6 +530,13 @@ HTML = """
                     </div>
                 </div>
 
+                {% if pdf_content %}
+                    <div class="result-container" style="background: rgba(240, 248, 255, 0.9); border-left: 5px solid #007bff;">
+                        <h3>📄 PDF Content Processed:</h3>
+                        <pre style="font-size: 0.9em; max-height: 200px; overflow-y: auto;">{{ pdf_content }}</pre>
+                    </div>
+                {% endif %}
+
                 {% if rag_results %}
                     <div class="result-container" style="background: rgba(255, 248, 220, 0.9); border-left: 5px solid #ffa500;">
                         <h3>📚 Knowledge Base Search Results:</h3>
@@ -533,17 +569,30 @@ HTML = """
 def index():
     result = None
     rag_results = None
+    pdf_content = None
     
     if request.method == 'POST' and request.form.get('problem') and crew is not None:
         try:
             problem = request.form['problem']
             
+            # Handle PDF upload if provided
+            pdf_text = ""
+            if 'pdf_file' in request.files:
+                pdf_file = request.files['pdf_file']
+                if pdf_file and pdf_file.filename.endswith('.pdf'):
+                    pdf_text = extract_text_from_pdf(pdf_file)
+                    pdf_content = f"Uploaded PDF content (first 500 chars): {pdf_text[:500]}..."
+                    print(f"📄 PDF uploaded: {pdf_file.filename} - {len(pdf_text)} characters extracted")
+            
             # Search knowledge base for relevant information
-            rag_results = search_knowledge_base(problem)
+            search_query = f"{problem} {pdf_text[:200]}" if pdf_text else problem
+            rag_results = search_knowledge_base(search_query)
             rag_context = format_rag_context(rag_results)
             
-            # Combine user problem with RAG context
+            # Combine user problem with RAG context and PDF content
             enhanced_problem = f"{rag_context}\nUSER PROBLEM: {problem}"
+            if pdf_text:
+                enhanced_problem += f"\n\nUPLOADED PDF CONTENT:\n{pdf_text}\n"
             
             # Process with AI agents
             result = crew.kickoff(inputs={"problem": enhanced_problem})
@@ -555,7 +604,7 @@ def index():
     elif request.method == 'POST' and request.form.get('problem') and crew is None:
         result = "Service temporarily unavailable. Please check configuration."
     
-    return render_template_string(HTML, result=result, rag_results=rag_results, request=request)
+    return render_template_string(HTML, result=result, rag_results=rag_results, pdf_content=pdf_content, request=request)
 
 
 if __name__ == '__main__':
