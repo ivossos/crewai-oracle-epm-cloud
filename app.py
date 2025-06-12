@@ -644,28 +644,59 @@ def index():
     if request.method == 'POST' and request.form.get('problem') and crew is not None:
         try:
             problem = request.form['problem']
+            print(f"🔄 Processing request: {problem[:100]}...")
             
             # Handle PDF upload if provided
             pdf_text = ""
             if 'pdf_file' in request.files:
                 pdf_file = request.files['pdf_file']
                 if pdf_file and pdf_file.filename.endswith('.pdf'):
-                    pdf_text = extract_text_from_pdf(pdf_file)
-                    pdf_content = f"Uploaded PDF content (first 500 chars): {pdf_text[:500]}..."
-                    print(f"📄 PDF uploaded: {pdf_file.filename} - {len(pdf_text)} characters extracted")
+                    try:
+                        pdf_text = extract_text_from_pdf(pdf_file)
+                        pdf_content = f"Uploaded PDF content (first 500 chars): {pdf_text[:500]}..."
+                        print(f"📄 PDF uploaded: {pdf_file.filename} - {len(pdf_text)} characters extracted")
+                    except Exception as pdf_error:
+                        print(f"❌ PDF processing error: {pdf_error}")
+                        pdf_content = "Error processing PDF file"
             
             # Search knowledge base for relevant information
             search_query = f"{problem} {pdf_text[:200]}" if pdf_text else problem
             rag_results = search_knowledge_base(search_query)
             rag_context = format_rag_context(rag_results)
             
+            print(f"🔍 RAG Search found {len(rag_results)} relevant articles")
+            
             # Combine user problem with RAG context and PDF content
             enhanced_problem = f"{rag_context}\nUSER PROBLEM: {problem}"
             if pdf_text:
                 enhanced_problem += f"\n\nUPLOADED PDF CONTENT:\n{pdf_text}\n"
             
-            # Process with AI agents
-            result = crew.kickoff(inputs={"problem": enhanced_problem})
+            print("🤖 Starting AI agent processing...")
+            
+            # Process with AI agents with timeout handling
+            try:
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("AI processing timeout")
+                
+                # Set timeout to 90 seconds
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(90)
+                
+                result = crew.kickoff(inputs={"problem": enhanced_problem})
+                
+                # Cancel timeout
+                signal.alarm(0)
+                
+                print("✅ AI processing completed successfully")
+                
+            except TimeoutError:
+                result = "⏰ Request timeout: The AI agents took too long to process your request. Please try again with a more specific question or contact support."
+                print("⏰ AI processing timeout occurred")
+            except Exception as ai_error:
+                result = f"🤖 AI Processing Error: {str(ai_error)}\n\nPlease try again or contact support if the issue persists."
+                print(f"❌ AI processing error: {ai_error}")
             
             # Store result for download
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -677,10 +708,9 @@ def index():
                 'pdf_content': pdf_content or ''
             }
             
-            print(f"🔍 RAG Search found {len(rag_results)} relevant articles")
-            
         except Exception as e:
-            result = f"Error processing request: {str(e)}"
+            result = f"❌ System Error: {str(e)}\n\nPlease check your input and try again."
+            print(f"❌ System error: {e}")
     elif request.method == 'POST' and request.form.get('problem') and crew is None:
         result = "Service temporarily unavailable. Please check configuration."
     
