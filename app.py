@@ -570,6 +570,11 @@ HTML = """
             transform: translateY(0);
         }
 
+        .nav-link:hover {
+            background: rgba(0, 255, 0, 0.1) !important;
+            border: 1px solid #00ff00 !important;
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 10px;
@@ -927,6 +932,12 @@ HTML = """
             <p>AI-powered support for FCCS, EPBCS, Essbase, Workforce Planning & Free Form Planning</p>
         </div>
 
+        <div class="nav-menu" style="background: #262626; padding: 15px 40px; border-bottom: 1px solid #00ff00; display: flex; gap: 20px;">
+            <a href="/" class="nav-link active" style="color: #000; background: #00ff00; text-decoration: none; padding: 10px 20px; border-radius: 8px;">🏠 Main Assistant</a>
+            <a href="/rag-dashboard" class="nav-link" style="color: #00ff00; text-decoration: none; padding: 10px 20px; border-radius: 8px; border: 1px solid transparent; transition: all 0.3s ease;">📚 RAG Dashboard</a>
+            <a href="/knowledge-base" class="nav-link" style="color: #00ff00; text-decoration: none; padding: 10px 20px; border-radius: 8px; border: 1px solid transparent; transition: all 0.3s ease;">🗃️ Knowledge Base</a>
+        </div>
+
         <div class="content">
             <div class="section">
                 <h2>Oracle EPM Problem Solver</h2>
@@ -1122,6 +1133,101 @@ def download_results(format):
         return "Invalid format. Use: txt, json, or html", 400
     
     return response
+
+@app.route('/rag-dashboard')
+def rag_dashboard():
+    """RAG Dashboard page with upload interface"""
+    try:
+        if db_rag_manager:
+            total_articles = len(db_rag_manager.get_all_articles())
+        else:
+            total_articles = sum(len(docs) for docs in KNOWLEDGE_BASE.values())
+        
+        # Mock data for demo - you can replace with real data
+        recent_uploads = [
+            {"filename": "EPM_Planning_Guide.pdf", "timestamp": "2024-01-15 10:30", "status": "✅ Processed"},
+            {"filename": "FCCS_Troubleshooting.pdf", "timestamp": "2024-01-14 15:45", "status": "✅ Processed"}
+        ]
+        
+        return render_template_string(open('templates/rag_dashboard.html').read(), 
+                                    total_articles=total_articles,
+                                    processed_pdfs=5,
+                                    search_queries=12,
+                                    recent_uploads=recent_uploads)
+    except Exception as e:
+        return f"Error loading RAG dashboard: {str(e)}", 500
+
+@app.route('/rag-upload', methods=['POST'])
+def rag_upload():
+    """Handle PDF uploads to RAG system"""
+    try:
+        if 'pdf_files' not in request.files:
+            return {"success": False, "error": "No files uploaded"}, 400
+        
+        files = request.files.getlist('pdf_files')
+        processed_count = 0
+        
+        for file in files:
+            if file and file.filename and file.filename.endswith('.pdf'):
+                try:
+                    # Extract text from PDF
+                    pdf_text = extract_text_from_pdf(file)
+                    
+                    # Add to knowledge base if we have DB manager
+                    if db_rag_manager:
+                        db_rag_manager.add_article(
+                            title=f"Uploaded: {file.filename}",
+                            content=pdf_text[:2000],  # Limit content size
+                            module="Uploaded",
+                            keywords=["uploaded", "pdf", "document"],
+                            category="uploaded_docs"
+                        )
+                    
+                    processed_count += 1
+                    print(f"✅ Processed: {file.filename}")
+                    
+                except Exception as e:
+                    print(f"❌ Error processing {file.filename}: {e}")
+                    continue
+        
+        return {"success": True, "processed": processed_count}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+@app.route('/knowledge-base')
+def knowledge_base():
+    """Knowledge base management page"""
+    try:
+        if db_rag_manager:
+            articles = db_rag_manager.get_all_articles()
+        else:
+            # Convert KNOWLEDGE_BASE to article format
+            articles = []
+            for category, docs in KNOWLEDGE_BASE.items():
+                for doc in docs:
+                    articles.append({
+                        'title': doc['title'],
+                        'module': doc['module'],
+                        'content': doc['content'][:200] + '...',
+                        'category': category
+                    })
+        
+        return render_template_string('''
+        <h1>Knowledge Base</h1>
+        <p>Total Articles: {{ articles|length }}</p>
+        {% for article in articles %}
+            <div style="border: 1px solid #ccc; margin: 10px; padding: 15px; border-radius: 8px;">
+                <h3>{{ article.title }}</h3>
+                <p><strong>Module:</strong> {{ article.module }}</p>
+                <p>{{ article.content }}</p>
+            </div>
+        {% endfor %}
+        <a href="/">← Back to Main</a>
+        ''', articles=articles)
+        
+    except Exception as e:
+        return f"Error loading knowledge base: {str(e)}", 500
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
