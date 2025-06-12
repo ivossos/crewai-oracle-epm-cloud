@@ -549,6 +549,11 @@ HTML = """
             background: linear-gradient(135deg, #218838 0%, #1ea97c 100%);
         }
 
+        .upload-button[id="instant-upload-btn"]:hover {
+            background: linear-gradient(135deg, #e55353 0%, #d63031 100%) !important;
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4) !important;
+        }
+
         .upload-button:active {
             transform: translateY(0);
         }
@@ -670,6 +675,66 @@ HTML = """
                 fileInput.click();
             });
 
+            // Instant upload button click handler
+            const instantUploadBtn = document.getElementById('instant-upload-btn');
+            instantUploadBtn.addEventListener('click', () => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'file';
+                hiddenInput.accept = '.pdf';
+                hiddenInput.style.display = 'none';
+                
+                hiddenInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        if (file.type === 'application/pdf') {
+                            // Create form data and upload immediately
+                            const formData = new FormData();
+                            formData.append('pdf_file', file);
+                            formData.append('problem', document.querySelector('textarea[name="problem"]').value || 'PDF analysis only');
+                            
+                            // Show upload progress
+                            showUploadProgress(file.name);
+                            
+                            // Submit the form automatically
+                            fetch('/', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.text())
+                            .then(html => {
+                                // Reload page with results
+                                document.open();
+                                document.write(html);
+                                document.close();
+                            })
+                            .catch(error => {
+                                alert('Upload failed: ' + error.message);
+                                hideUploadProgress();
+                            });
+                        } else {
+                            alert('Please select a PDF file only.');
+                        }
+                    }
+                });
+                
+                hiddenInput.click();
+            });
+
+            function showUploadProgress(filename) {
+                const statusDiv = document.getElementById('upload-status');
+                const statusMessage = document.getElementById('status-message');
+                statusMessage.textContent = `🔄 Uploading ${filename}...`;
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#e3f2fd';
+                statusDiv.style.border = '1px solid #2196f3';
+                statusDiv.style.color = '#1565c0';
+            }
+
+            function hideUploadProgress() {
+                const statusDiv = document.getElementById('upload-status');
+                statusDiv.style.display = 'none';
+            }
+
             // Drag and drop events
             dropZone.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -768,9 +833,14 @@ HTML = """
                                     <button type="button" id="remove-file" class="remove-btn">×</button>
                                 </div>
                             </div>
-                            <button type="button" id="upload-btn" class="upload-button">
-                                📁 Choose PDF File
-                            </button>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <button type="button" id="upload-btn" class="upload-button">
+                                    📁 Choose PDF File
+                                </button>
+                                <button type="button" id="instant-upload-btn" class="upload-button" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); box-shadow: 0 5px 15px rgba(255, 107, 107, 0.2);">
+                                    ⚡ Upload & Analyze Now
+                                </button>
+                            </div>
                         </div>
                         <small style="color: #666; margin-top: 10px; display: block;">
                             Upload Oracle EPM documentation, error logs, or related PDF files for analysis
