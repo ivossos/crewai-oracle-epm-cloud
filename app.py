@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from oracle_epm_support.crew import build_crew
 from flask import Flask, request, render_template_string, make_response
+from rag_knowledge_manager import RAGKnowledgeManager
 
 # Configure CrewAI to use Anthropic
 os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY", "")
@@ -170,6 +171,21 @@ def format_rag_context(search_results):
     context += "\n=== END KNOWLEDGE BASE ===\n"
     context += "Please reference these articles when relevant to the user's question.\n\n"
     return context
+
+# Initialize PostgreSQL RAG manager
+try:
+    db_rag_manager = RAGKnowledgeManager()
+    
+    # Import existing knowledge base if database is empty
+    existing_articles = db_rag_manager.get_all_articles()
+    if not existing_articles:
+        print("📚 Importing existing knowledge base to PostgreSQL...")
+        db_rag_manager.import_from_knowledge_base(KNOWLEDGE_BASE)
+    
+    print(f"✅ PostgreSQL RAG system initialized with {len(db_rag_manager.get_all_articles())} articles")
+except Exception as e:
+    print(f"❌ Failed to initialize PostgreSQL RAG: {e}")
+    db_rag_manager = None
 
 # Initialize crew with error handling
 try:
@@ -661,7 +677,14 @@ def index():
             
             # Search knowledge base for relevant information
             search_query = f"{problem} {pdf_text[:200]}" if pdf_text else problem
-            rag_results = search_knowledge_base(search_query)
+            
+            # Use PostgreSQL RAG if available, fallback to in-memory search
+            if db_rag_manager:
+                db_results = db_rag_manager.search_articles(search_query)
+                rag_results = [{'doc': r['article'], 'score': r['score'], 'category': r['article']['category']} for r in db_results]
+            else:
+                rag_results = search_knowledge_base(search_query)
+            
             rag_context = format_rag_context(rag_results)
             
             print(f"🔍 RAG Search found {len(rag_results)} relevant articles")
