@@ -689,6 +689,7 @@ def index():
     result = None
     rag_results = None
     pdf_content = None
+    pdf_status = None
     
     if request.method == 'POST' and request.form.get('problem') and crew is not None:
         try:
