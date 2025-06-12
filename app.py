@@ -355,6 +355,15 @@ HTML = """
                         <strong>🎨 Free Form Analyst</strong>
                         Custom Modeling
                     </div>
+                    <div class="agent-card">
+                        <strong>📚 RAG System</strong>
+                        Knowledge Retrieval
+                    </div>
+                </div></div>
+
+                <div class="section" style="background: linear-gradient(135deg, #e8f5e8 0%, #a8e6a8 100%);">
+                    <h2 style="color: #2d5a2d;">🔍 Enhanced with RAG Technology</h2>
+                    <p style="color: #2d5a2d; margin: 0;">This assistant now uses Retrieval-Augmented Generation (RAG) to provide more accurate and contextual responses by accessing a comprehensive Oracle EPM knowledge base.</p>
                 </div>
 
                 {% if result %}
