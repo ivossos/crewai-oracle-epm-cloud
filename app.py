@@ -9,7 +9,7 @@ from io import BytesIO
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from oracle_epm_support.crew import build_crew
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, make_response
 
 # Configure CrewAI to use Anthropic
 os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY", "")
@@ -555,6 +555,12 @@ HTML = """
                 {% if result %}
                     <div class="result-container">
                         <h3>🤖 AI Agent Response:</h3>
+                        <div style="margin-bottom: 15px;">
+                            <strong>💾 Download Results:</strong>
+                            <a href="/download/txt" style="margin: 0 5px; padding: 5px 10px; background: #28a745; color: white; text-decoration: none; border-radius: 3px; font-size: 0.9em;">📄 TXT</a>
+                            <a href="/download/json" style="margin: 0 5px; padding: 5px 10px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; font-size: 0.9em;">📋 JSON</a>
+                            <a href="/download/html" style="margin: 0 5px; padding: 5px 10px; background: #fd7e14; color: white; text-decoration: none; border-radius: 3px; font-size: 0.9em;">🌐 HTML</a>
+                        </div>
                         <pre>{{ result }}</pre>
                     </div>
                 {% endif %}
@@ -564,6 +570,70 @@ HTML = """
 </body>
 </html>
 """
+
+@app.route('/download/<format>')
+def download_results(format):
+    """Download the last result in specified format"""
+    global last_result_data
+    
+    if not hasattr(download_results, 'last_result') or not download_results.last_result:
+        return "No results available for download", 404
+    
+    result_data = download_results.last_result
+    
+    if format == 'txt':
+        response = make_response(result_data['content'])
+        response.headers['Content-Type'] = 'text/plain'
+        response.headers['Content-Disposition'] = f'attachment; filename="oracle_epm_analysis_{result_data["timestamp"]}.txt"'
+        
+    elif format == 'json':
+        import json
+        json_data = {
+            "timestamp": result_data['timestamp'],
+            "problem": result_data['problem'],
+            "ai_response": result_data['content'],
+            "rag_results": result_data.get('rag_results', []),
+            "pdf_content": result_data.get('pdf_content', '')
+        }
+        response = make_response(json.dumps(json_data, indent=2))
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Disposition'] = f'attachment; filename="oracle_epm_analysis_{result_data["timestamp"]}.json"'
+        
+    elif format == 'html':
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Oracle EPM Analysis Results</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .header {{ background: #f0f0f0; padding: 15px; border-radius: 5px; }}
+                .content {{ margin-top: 20px; white-space: pre-wrap; }}
+                .timestamp {{ color: #666; font-size: 0.9em; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Oracle EPM Support Analysis</h1>
+                <p class="timestamp">Generated: {result_data['timestamp']}</p>
+                <h3>Problem:</h3>
+                <p>{result_data['problem']}</p>
+            </div>
+            <div class="content">
+                <h3>AI Analysis:</h3>
+                <pre>{result_data['content']}</pre>
+            </div>
+        </body>
+        </html>
+        """
+        response = make_response(html_content)
+        response.headers['Content-Type'] = 'text/html'
+        response.headers['Content-Disposition'] = f'attachment; filename="oracle_epm_analysis_{result_data["timestamp"]}.html"'
+    
+    else:
+        return "Invalid format. Use: txt, json, or html", 400
+    
+    return response
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -596,6 +666,16 @@ def index():
             
             # Process with AI agents
             result = crew.kickoff(inputs={"problem": enhanced_problem})
+            
+            # Store result for download
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            download_results.last_result = {
+                'content': str(result),
+                'problem': problem,
+                'timestamp': timestamp,
+                'rag_results': [{'doc': r['doc'], 'score': r['score']} for r in rag_results] if rag_results else [],
+                'pdf_content': pdf_content or ''
+            }
             
             print(f"🔍 RAG Search found {len(rag_results)} relevant articles")
             
