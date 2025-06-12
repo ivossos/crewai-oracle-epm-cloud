@@ -442,14 +442,14 @@ HTML = """
 
         .upload-zone {
             border: 2px dashed #667eea;
-            border-radius: 15px;
-            padding: 40px 20px;
+            border-radius: 10px;
+            padding: 20px 15px;
             text-align: center;
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
-            min-height: 120px;
+            min-height: 80px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -476,14 +476,14 @@ HTML = """
         }
 
         .upload-icon {
-            font-size: 3em;
+            font-size: 2em;
             opacity: 0.7;
         }
 
         .upload-text {
             color: #333;
-            font-size: 1.1em;
-            line-height: 1.4;
+            font-size: 0.95em;
+            line-height: 1.3;
         }
 
         .upload-text strong {
@@ -582,16 +582,16 @@ HTML = """
             }
 
             .upload-zone {
-                padding: 30px 15px;
-                min-height: 100px;
+                padding: 15px 10px;
+                min-height: 60px;
             }
 
             .upload-icon {
-                font-size: 2.5em;
+                font-size: 1.8em;
             }
 
             .upload-text {
-                font-size: 1em;
+                font-size: 0.9em;
             }
 
             /* Stack upload elements vertically on mobile */
