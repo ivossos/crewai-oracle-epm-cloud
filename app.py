@@ -76,17 +76,9 @@ HTML = """
             margin-bottom: 40px;
             padding: 30px;
             border-radius: 15px;
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
             border: none;
             box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-
-        .calculator {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-        }
-
-        .epm-support {
-            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
         }
 
         .section h2 {
@@ -99,53 +91,34 @@ HTML = """
         }
 
         .section h2::before {
-            content: "🧮";
+            content: "🏢";
             margin-right: 10px;
             font-size: 1.2em;
-        }
-
-        .epm-support h2::before {
-            content: "🏢";
         }
 
         .form-group {
             margin-bottom: 20px;
         }
 
-        .calc-input-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        input[type="text"], textarea {
+        textarea {
+            width: 100%;
+            min-height: 120px;
             border: 2px solid #e9ecef;
             border-radius: 10px;
             padding: 15px;
             font-size: 16px;
+            resize: vertical;
             transition: all 0.3s ease;
             font-family: inherit;
         }
 
-        input[type="text"] {
-            flex: 1;
-            min-width: 300px;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 120px;
-            resize: vertical;
-        }
-
-        input[type="text"]:focus, textarea:focus {
+        textarea:focus {
             border-color: #667eea;
             outline: none;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        button, input[type="submit"] {
+        input[type="submit"] {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
@@ -158,23 +131,61 @@ HTML = """
             white-space: nowrap;
         }
 
-        button:hover, input[type="submit"]:hover {
+        input[type="submit"]:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
 
-        .calc-result {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            margin-top: 20px;
-            border-radius: 10px;
-            border-left: 5px solid #28a745;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        input[type="submit"]:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
-        .calc-result strong {
-            color: #155724;
-            font-size: 1.1em;
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            border-left: 5px solid #007bff;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: progress-animation 2s infinite;
+        }
+
+        @keyframes progress-animation {
+            0% { width: 0%; }
+            50% { width: 60%; }
+            100% { width: 100%; }
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .progress-steps {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
         }
 
         .result-container {
@@ -248,16 +259,53 @@ HTML = """
                 padding: 20px;
                 margin-bottom: 20px;
             }
-
-            .calc-input-group {
-                flex-direction: column;
-            }
-
-            input[type="text"] {
-                min-width: 100%;
-            }
         }
     </style>
+    <script>
+        function showProgress() {
+            const form = document.getElementById('epm-form');
+            const submitBtn = document.getElementById('submit-btn');
+            const progressContainer = document.getElementById('progress-container');
+            const progressText = document.getElementById('progress-text');
+            const progressSteps = document.getElementById('progress-steps');
+            
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.value = 'Processing...';
+            
+            // Show progress bar
+            progressContainer.style.display = 'block';
+            
+            // Progress messages
+            const steps = [
+                'Initializing AI agents...',
+                'Analyzing your EPM problem...',
+                'Consulting specialized experts...',
+                'FCCS agent reviewing consolidation issues...',
+                'EPBCS architect analyzing planning models...',
+                'Workforce specialist examining HR data...',
+                'Essbase guru optimizing performance...',
+                'Free Form analyst designing solutions...',
+                'Compiling comprehensive response...',
+                'Finalizing recommendations...'
+            ];
+            
+            let currentStep = 0;
+            const stepInterval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    progressText.textContent = steps[currentStep];
+                    progressSteps.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+                    currentStep++;
+                } else {
+                    clearInterval(stepInterval);
+                    progressText.textContent = 'Almost done...';
+                    progressSteps.textContent = 'Preparing final response';
+                }
+            }, 1000);
+            
+            return true;
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -267,35 +315,24 @@ HTML = """
         </div>
 
         <div class="content">
-            <div class="section calculator">
-                <h2>Quick Calculator</h2>
-                <form method="post" action="/calculate">
-                    <div class="form-group">
-                        <div class="calc-input-group">
-                            <input type="text" name="expression" 
-                                   placeholder="Enter calculation (e.g., 10e7, 5+3*2, sqrt(16))" 
-                                   value="{{ request.form.expression or '' }}">
-                            <input type="submit" value="Calculate">
-                        </div>
-                    </div>
-                </form>
-                {% if calc_result %}
-                    <div class="calc-result">
-                        <strong>Result:</strong> {{ calc_result }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="section epm-support">
+            <div class="section">
                 <h2>Oracle EPM Problem Solver</h2>
-                <form method="post" action="/">
+                <form id="epm-form" method="post" action="/" onsubmit="return showProgress()">
                     <div class="form-group">
                         <textarea name="problem" 
                                   placeholder="Describe your Oracle EPM issue in detail. Include module (FCCS, EPBCS, Essbase, etc.), error messages, and what you were trying to accomplish..."
-                                  >{{ request.form.problem or '' }}</textarea>
+                                  required>{{ request.form.problem or '' }}</textarea>
                     </div>
-                    <input type="submit" value="Get AI-Powered Help">
+                    <input type="submit" id="submit-btn" value="Get AI-Powered Help">
                 </form>
+
+                <div id="progress-container" class="progress-container">
+                    <div id="progress-text" class="progress-text">Initializing AI agents...</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div id="progress-steps" class="progress-steps">Step 1 of 10</div>
+                </div>
 
                 <div class="agents-info">
                     <div class="agent-card">
@@ -336,7 +373,6 @@ HTML = """
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
-    calc_result = None
     if request.method == 'POST' and request.form.get('problem') and crew is not None:
         try:
             problem = request.form['problem']
@@ -345,25 +381,7 @@ def index():
             result = f"Error processing request: {str(e)}"
     elif request.method == 'POST' and request.form.get('problem') and crew is None:
         result = "Service temporarily unavailable. Please check configuration."
-    return render_template_string(HTML, result=result, calc_result=calc_result, request=request)
-
-
-@app.route('/calculate', methods=['POST'])
-def calculate():
-    result = None
-    problem = None
-    calc_result = None
-    if request.method == 'POST':
-        try:
-            expression = request.form['expression']
-            # Safely evaluate the expression (basic arithmetic operations only)
-            calc_result = eval(expression, {"__builtins__": None}, {
-                'sqrt': __import__('math').sqrt,
-                'pow': __import__('math').pow,
-            })  # Removed potentially dangerous functions
-        except Exception as e:
-            calc_result = f"Calculation error: {str(e)}"
-    return render_template_string(HTML, result=result, calc_result=calc_result, request=request)
+    return render_template_string(HTML, result=result, request=request)
 
 
 if __name__ == '__main__':
