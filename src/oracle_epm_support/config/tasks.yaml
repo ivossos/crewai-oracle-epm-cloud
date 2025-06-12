@@ -32,3 +32,11 @@ freeform_support_task:
     Problem: {problem}
   expected_output: >
     Step-by-step guidance on resolving the Free Form model issue, including setup or structural fixes.
+
+groovy_debug_task:
+  description: >
+    The user has submitted a Groovy script used in Oracle EPM Planning and needs help identifying issues or improving it.
+    Script:
+    {problem}
+  expected_output: >
+    A line-by-line analysis of the script, including syntax problems, logic issues, and suggestions for improvements.
