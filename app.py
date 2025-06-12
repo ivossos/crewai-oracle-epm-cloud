@@ -661,10 +661,17 @@ HTML = """
             });
 
             function showFileInfo(file) {
-                fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+                fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB) - Processing...`;
+                fileName.style.color = '#ffc107';
                 uploadContent.style.display = 'none';
                 fileInfo.style.display = 'flex';
                 dropZone.style.cursor = 'default';
+                
+                // Simulate processing feedback
+                setTimeout(() => {
+                    fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB) - Ready for upload ✅`;
+                    fileName.style.color = '#28a745';
+                }, 500);
             }
 
             function hideFileInfo() {
@@ -716,6 +723,9 @@ HTML = """
                         <small style="color: #666; margin-top: 10px; display: block;">
                             Upload Oracle EPM documentation, error logs, or related PDF files for analysis
                         </small>
+                        <div id="upload-status" style="display: none; margin-top: 10px; padding: 10px; border-radius: 5px; font-size: 0.9em;">
+                            <span id="status-message"></span>
+                        </div>
                     </div>
                     <input type="submit" id="submit-btn" value="Get AI-Powered Help">
                 </form>
@@ -759,7 +769,13 @@ HTML = """
                         {% else %}background: rgba(240, 248, 255, 0.9); border-left: 5px solid #007bff;
                         {% endif %}
                     ">
-                        <h3>📄 PDF Processing Status:</h3>
+                        <h3>
+                            {% if pdf_status == 'success' %}✅ PDF Successfully Processed
+                            {% elif pdf_status == 'warning' %}⚠️ PDF Processed with Warnings
+                            {% elif pdf_status == 'error' %}❌ PDF Processing Failed
+                            {% else %}📄 PDF Processing Status
+                            {% endif %}
+                        </h3>
                         <pre style="font-size: 0.9em; max-height: 200px; overflow-y: auto; white-space: pre-wrap;">{{ pdf_content }}</pre>
                     </div>
                 {% endif %}
