@@ -691,21 +691,35 @@ HTML = """
                             // Show upload progress
                             showUploadProgress(file.name);
                             
-                            // Submit the form automatically
+                            // Submit the form automatically with enhanced status tracking
                             fetch('/', {
                                 method: 'POST',
                                 body: formData
                             })
-                            .then(response => response.text())
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                                }
+                                updateUploadStatus('📊 Processing complete! Loading results...', 'success');
+                                return response.text();
+                            })
                             .then(html => {
-                                // Reload page with results
-                                document.open();
-                                document.write(html);
-                                document.close();
+                                // Brief delay to show completion status
+                                setTimeout(() => {
+                                    // Reload page with results
+                                    document.open();
+                                    document.write(html);
+                                    document.close();
+                                }, 500);
                             })
                             .catch(error => {
-                                alert('Upload failed: ' + error.message);
-                                hideUploadProgress();
+                                console.error('Upload error:', error);
+                                updateUploadStatus(`❌ Upload failed: ${error.message}`, 'error');
+                                
+                                // Auto-hide error after 5 seconds
+                                setTimeout(() => {
+                                    hideUploadProgress();
+                                }, 5000);
                             });
                         } else {
                             alert('Please select a PDF file only.');
@@ -719,16 +733,85 @@ HTML = """
             function showUploadProgress(filename) {
                 const statusDiv = document.getElementById('upload-status');
                 const statusMessage = document.getElementById('status-message');
-                statusMessage.textContent = `🔄 Uploading ${filename}...`;
+                
+                // Clear any existing status
+                statusDiv.innerHTML = `<span id="status-message">🔄 Uploading ${filename}...</span>`;
                 statusDiv.style.display = 'block';
                 statusDiv.style.background = '#e3f2fd';
-                statusDiv.style.border = '1px solid #2196f3';
+                statusDiv.style.border = '2px solid #2196f3';
                 statusDiv.style.color = '#1565c0';
+                statusDiv.style.padding = '15px';
+                statusDiv.style.borderRadius = '10px';
+                statusDiv.style.marginTop = '15px';
+                statusDiv.style.transition = 'all 0.3s ease';
+                
+                // Add animated progress indicator
+                let dots = 0;
+                const progressInterval = setInterval(() => {
+                    dots = (dots + 1) % 4;
+                    const newMessage = document.getElementById('status-message');
+                    if (newMessage) {
+                        newMessage.textContent = `🔄 Processing ${filename}${'.'.repeat(dots)}`;
+                    } else {
+                        clearInterval(progressInterval);
+                    }
+                }, 500);
+                
+                // Store interval for cleanup
+                statusDiv.dataset.progressInterval = progressInterval;
+            }
+
+            function updateUploadStatus(message, type = 'info') {
+                const statusDiv = document.getElementById('upload-status');
+                const statusMessage = document.getElementById('status-message');
+                
+                // Clear any progress intervals
+                if (statusDiv.dataset.progressInterval) {
+                    clearInterval(parseInt(statusDiv.dataset.progressInterval));
+                    delete statusDiv.dataset.progressInterval;
+                }
+                
+                if (statusMessage) {
+                    statusMessage.textContent = message;
+                }
+                
+                // Update styling based on status type
+                switch(type) {
+                    case 'success':
+                        statusDiv.style.background = '#d4edda';
+                        statusDiv.style.border = '2px solid #28a745';
+                        statusDiv.style.color = '#155724';
+                        break;
+                    case 'error':
+                        statusDiv.style.background = '#f8d7da';
+                        statusDiv.style.border = '2px solid #dc3545';
+                        statusDiv.style.color = '#721c24';
+                        break;
+                    case 'warning':
+                        statusDiv.style.background = '#fff3cd';
+                        statusDiv.style.border = '2px solid #ffc107';
+                        statusDiv.style.color = '#856404';
+                        break;
+                    default:
+                        statusDiv.style.background = '#e3f2fd';
+                        statusDiv.style.border = '2px solid #2196f3';
+                        statusDiv.style.color = '#1565c0';
+                }
+                
+                statusDiv.style.display = 'block';
             }
 
             function hideUploadProgress() {
                 const statusDiv = document.getElementById('upload-status');
+                
+                // Clear any progress intervals
+                if (statusDiv.dataset.progressInterval) {
+                    clearInterval(parseInt(statusDiv.dataset.progressInterval));
+                    delete statusDiv.dataset.progressInterval;
+                }
+                
                 statusDiv.style.display = 'none';
+                statusDiv.innerHTML = '<span id="status-message"></span>';
             }
 
             // Drag and drop events
@@ -746,18 +829,40 @@ HTML = """
                 dropZone.classList.remove('dragover');
                 
                 const files = e.dataTransfer.files;
-                if (files.length > 0 && files[0].type === 'application/pdf') {
-                    fileInput.files = files;
-                    showFileInfo(files[0]);
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'application/pdf') {
+                        fileInput.files = files;
+                        showFileInfo(file);
+                    } else {
+                        updateUploadStatus(`❌ Invalid file type: ${file.type}. Please upload PDF files only.`, 'error');
+                        setTimeout(() => {
+                            hideUploadProgress();
+                        }, 3000);
+                    }
                 } else {
-                    alert('Please upload a PDF file only.');
+                    updateUploadStatus('❌ No files detected. Please try again.', 'error');
+                    setTimeout(() => {
+                        hideUploadProgress();
+                    }, 3000);
                 }
             });
 
-            // File input change
+            // File input change with enhanced validation
             fileInput.addEventListener('change', (e) => {
                 if (e.target.files.length > 0) {
-                    showFileInfo(e.target.files[0]);
+                    const file = e.target.files[0];
+                    if (file.type === 'application/pdf') {
+                        showFileInfo(file);
+                    } else {
+                        updateUploadStatus(`❌ Invalid file: "${file.name}". Only PDF files are supported.`, 'error');
+                        fileInput.value = ''; // Clear invalid selection
+                        setTimeout(() => {
+                            hideUploadProgress();
+                        }, 3000);
+                    }
+                } else {
+                    hideUploadProgress();
                 }
             });
 
@@ -775,11 +880,24 @@ HTML = """
                 fileInfo.style.display = 'flex';
                 dropZone.style.cursor = 'default';
                 
-                // Simulate processing feedback
+                // Show initial processing status
+                updateUploadStatus(`📄 Validating ${file.name}...`, 'info');
+                
+                // Simulate file validation steps with real-time updates
                 setTimeout(() => {
-                    fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB) - Ready for upload ✅`;
+                    updateUploadStatus(`✅ File validated: ${file.name}`, 'info');
+                    fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB) - Validated ✅`;
                     fileName.style.color = '#28a745';
-                }, 500);
+                }, 300);
+                
+                setTimeout(() => {
+                    updateUploadStatus(`🚀 Ready to upload ${file.name}`, 'success');
+                }, 800);
+                
+                // Auto-hide status after showing ready state
+                setTimeout(() => {
+                    hideUploadProgress();
+                }, 2500);
             }
 
             function hideFileInfo() {
