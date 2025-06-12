@@ -440,6 +440,91 @@ HTML = """
             color: #333;
         }
 
+        .upload-zone {
+            border: 2px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-zone:hover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .upload-zone.dragover {
+            border-color: #28a745;
+            background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+            border-style: solid;
+        }
+
+        .upload-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            opacity: 0.7;
+        }
+
+        .upload-text {
+            color: #333;
+            font-size: 1.1em;
+            line-height: 1.4;
+        }
+
+        .upload-text strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(40, 167, 69, 0.1);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 2px solid #28a745;
+            margin-top: 10px;
+            font-weight: 500;
+            color: #155724;
+        }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .remove-btn:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 10px;
@@ -461,6 +546,19 @@ HTML = """
             .section {
                 padding: 20px;
                 margin-bottom: 20px;
+            }
+
+            .upload-zone {
+                padding: 30px 15px;
+                min-height: 100px;
+            }
+
+            .upload-icon {
+                font-size: 2.5em;
+            }
+
+            .upload-text {
+                font-size: 1em;
             }
         }
     </style>
@@ -508,6 +606,73 @@ HTML = """
             
             return true;
         }
+
+        // Enhanced PDF upload functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('pdf-upload');
+            const fileInfo = document.getElementById('file-info');
+            const fileName = document.getElementById('file-name');
+            const removeBtn = document.getElementById('remove-file');
+            const uploadContent = document.querySelector('.upload-content');
+
+            // Click to browse files
+            dropZone.addEventListener('click', () => {
+                if (!fileInput.files.length) {
+                    fileInput.click();
+                }
+            });
+
+            // Drag and drop events
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type === 'application/pdf') {
+                    fileInput.files = files;
+                    showFileInfo(files[0]);
+                } else {
+                    alert('Please upload a PDF file only.');
+                }
+            });
+
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    showFileInfo(e.target.files[0]);
+                }
+            });
+
+            // Remove file
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fileInput.value = '';
+                hideFileInfo();
+            });
+
+            function showFileInfo(file) {
+                fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+                uploadContent.style.display = 'none';
+                fileInfo.style.display = 'flex';
+                dropZone.style.cursor = 'default';
+            }
+
+            function hideFileInfo() {
+                uploadContent.style.display = 'flex';
+                fileInfo.style.display = 'none';
+                dropZone.style.cursor = 'pointer';
+            }
+        });
     </script>
 </head>
 <body>
@@ -527,15 +692,28 @@ HTML = """
                                   required>{{ request.form.problem or '' }}</textarea>
                     </div>
                     <div class="form-group">
-                        <label for="pdf-upload" style="display: block; margin-bottom: 10px; font-weight: 500; color: #333;">
+                        <label for="pdf-upload" style="display: block; margin-bottom: 15px; font-weight: 500; color: #333;">
                             📄 Upload PDF Document (Optional)
                         </label>
-                        <input type="file" 
-                               id="pdf-upload" 
-                               name="pdf_file" 
-                               accept=".pdf"
-                               style="width: 100%; padding: 10px; border: 2px dashed #667eea; border-radius: 10px; background: rgba(102, 126, 234, 0.05);">
-                        <small style="color: #666; margin-top: 5px; display: block;">
+                        <div id="drop-zone" class="upload-zone">
+                            <div class="upload-content">
+                                <div class="upload-icon">📄</div>
+                                <div class="upload-text">
+                                    <strong>Drag & Drop PDF here</strong>
+                                    <br>or click to browse files
+                                </div>
+                                <input type="file" 
+                                       id="pdf-upload" 
+                                       name="pdf_file" 
+                                       accept=".pdf"
+                                       style="display: none;">
+                            </div>
+                            <div id="file-info" class="file-info" style="display: none;">
+                                <span id="file-name"></span>
+                                <button type="button" id="remove-file" class="remove-btn">×</button>
+                            </div>
+                        </div>
+                        <small style="color: #666; margin-top: 10px; display: block;">
                             Upload Oracle EPM documentation, error logs, or related PDF files for analysis
                         </small>
                     </div>
