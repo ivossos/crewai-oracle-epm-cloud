@@ -1,5 +1,7 @@
 import os
 import sys
+import json
+from datetime import datetime
 
 # 👇 This tells Python to look inside 'src/'
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -12,10 +14,152 @@ os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY", "")
 
 app = Flask(__name__)
 
+# RAG Knowledge Base - Oracle EPM Documentation and Common Issues
+KNOWLEDGE_BASE = {
+    "fccs_issues": [
+        {
+            "id": "fccs_001",
+            "title": "Consolidation Rules Not Executing",
+            "content": "Common causes: 1) Missing or incorrect elimination rules 2) Entity hierarchy issues 3) Ownership percentages not defined 4) Period status not set to 'Ready for Consolidation'",
+            "keywords": ["consolidation", "rules", "elimination", "not executing", "not working"],
+            "module": "FCCS"
+        },
+        {
+            "id": "fccs_002", 
+            "title": "Intercompany Elimination Issues",
+            "content": "Check: 1) IC partner mapping 2) Account dimension setup 3) IC data quality 4) Matching tolerance settings 5) Currency conversion timing",
+            "keywords": ["intercompany", "elimination", "IC", "matching", "partner"],
+            "module": "FCCS"
+        },
+        {
+            "id": "fccs_003",
+            "title": "Currency Translation Problems",
+            "content": "Verify: 1) Exchange rates loaded 2) Translation methods assigned 3) Rate type configuration 4) Historical rate setup for equity accounts",
+            "keywords": ["currency", "translation", "exchange rates", "FX", "historical"],
+            "module": "FCCS"
+        }
+    ],
+    "epbcs_issues": [
+        {
+            "id": "epbcs_001",
+            "title": "Business Rules Failing",
+            "content": "Debug steps: 1) Check syntax in rule editor 2) Verify dimension member references 3) Review calculation order 4) Check security permissions 5) Validate data forms",
+            "keywords": ["business rules", "failing", "error", "calculation", "syntax"],
+            "module": "EPBCS"
+        },
+        {
+            "id": "epbcs_002",
+            "title": "Data Form Performance Issues",
+            "content": "Optimize: 1) Reduce form scope 2) Use dynamic members sparingly 3) Implement conditional formatting 4) Review page/POV settings 5) Enable smart push",
+            "keywords": ["data form", "performance", "slow", "optimization", "scope"],
+            "module": "EPBCS"
+        },
+        {
+            "id": "epbcs_003",
+            "title": "Approval Workflow Problems",
+            "content": "Troubleshoot: 1) Check planning unit assignments 2) Verify reviewer hierarchy 3) Review approval status 4) Check notification settings 5) Validate security roles",
+            "keywords": ["approval", "workflow", "planning unit", "reviewer", "notification"],
+            "module": "EPBCS"
+        }
+    ],
+    "essbase_issues": [
+        {
+            "id": "ess_001",
+            "title": "Slow Calculation Performance",
+            "content": "Optimize: 1) Review calculation order 2) Use FIXPARALLEL for dense calcs 3) Implement calc scripts vs business rules 4) Check data sparsity 5) Consider ASO vs BSO",
+            "keywords": ["calculation", "performance", "slow", "optimization", "parallel"],
+            "module": "Essbase"
+        },
+        {
+            "id": "ess_002",
+            "title": "Outline Restructure Issues",
+            "content": "Best practices: 1) Backup before restructure 2) Check member relationships 3) Review aliases and UDAs 4) Validate data integrity 5) Test calc scripts",
+            "keywords": ["outline", "restructure", "member", "hierarchy", "backup"],
+            "module": "Essbase"
+        }
+    ],
+    "workforce_issues": [
+        {
+            "id": "wfp_001",
+            "title": "Salary Forecast Calculation Issues",
+            "content": "Review: 1) Merit increase assumptions 2) Promotion timing 3) Benefits allocation 4) Headcount driver relationships 5) Salary grade mappings",
+            "keywords": ["salary", "forecast", "merit", "promotion", "benefits"],
+            "module": "Workforce"
+        }
+    ],
+    "general_issues": [
+        {
+            "id": "gen_001",
+            "title": "Data Integration Problems",
+            "content": "Common fixes: 1) Check Data Management connections 2) Verify mapping tables 3) Review error logs 4) Validate source data 5) Check security permissions",
+            "keywords": ["data integration", "data management", "mapping", "connection", "error"],
+            "module": "General"
+        },
+        {
+            "id": "gen_002",
+            "title": "Performance Tuning Best Practices",
+            "content": "Optimize: 1) Review application design 2) Implement caching 3) Use parallel processing 4) Monitor system resources 5) Regular maintenance tasks",
+            "keywords": ["performance", "tuning", "optimization", "slow", "resources"],
+            "module": "General"
+        }
+    ]
+}
+
+def search_knowledge_base(query, max_results=3):
+    """Search the knowledge base for relevant documents based on query keywords"""
+    query_lower = query.lower()
+    results = []
+    
+    # Search through all categories
+    for category, documents in KNOWLEDGE_BASE.items():
+        for doc in documents:
+            score = 0
+            # Check title match
+            if any(word in doc['title'].lower() for word in query_lower.split()):
+                score += 3
+            
+            # Check keyword match
+            for keyword in doc['keywords']:
+                if keyword in query_lower:
+                    score += 2
+            
+            # Check content match
+            if any(word in doc['content'].lower() for word in query_lower.split() if len(word) > 3):
+                score += 1
+            
+            if score > 0:
+                results.append({
+                    'doc': doc,
+                    'score': score,
+                    'category': category
+                })
+    
+    # Sort by relevance score and return top results
+    results.sort(key=lambda x: x['score'], reverse=True)
+    return results[:max_results]
+
+def format_rag_context(search_results):
+    """Format search results into context for the AI agents"""
+    if not search_results:
+        return ""
+    
+    context = "\n=== RELEVANT KNOWLEDGE BASE ARTICLES ===\n"
+    for i, result in enumerate(search_results, 1):
+        doc = result['doc']
+        context += f"\n{i}. [{doc['module']}] {doc['title']}\n"
+        context += f"   ID: {doc['id']}\n"
+        context += f"   Content: {doc['content']}\n"
+        context += f"   Relevance Score: {result['score']}\n"
+    
+    context += "\n=== END KNOWLEDGE BASE ===\n"
+    context += "Please reference these articles when relevant to the user's question.\n\n"
+    return context
+
 # Initialize crew with error handling
 try:
     crew = build_crew()
     print("✅ Crew initialized successfully")
+    print("📚 RAG Knowledge Base loaded with", sum(len(docs) for docs in KNOWLEDGE_BASE.values()), "articles")
 except Exception as e:
     print(f"❌ Failed to initialize crew: {e}")
     crew = None
@@ -355,16 +499,22 @@ HTML = """
                         <strong>🎨 Free Form Analyst</strong>
                         Custom Modeling
                     </div>
-                    <div class="agent-card">
-                        <strong>📚 RAG System</strong>
-                        Knowledge Retrieval
-                    </div>
-                </div></div>
-
-                <div class="section" style="background: linear-gradient(135deg, #e8f5e8 0%, #a8e6a8 100%);">
-                    <h2 style="color: #2d5a2d;">🔍 Enhanced with RAG Technology</h2>
-                    <p style="color: #2d5a2d; margin: 0;">This assistant now uses Retrieval-Augmented Generation (RAG) to provide more accurate and contextual responses by accessing a comprehensive Oracle EPM knowledge base.</p>
                 </div>
+
+                {% if rag_results %}
+                    <div class="result-container" style="background: rgba(255, 248, 220, 0.9); border-left: 5px solid #ffa500;">
+                        <h3>📚 Knowledge Base Search Results:</h3>
+                        <div style="margin-bottom: 15px;">
+                            {% for result in rag_results %}
+                                <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.7); border-radius: 5px;">
+                                    <strong>[{{ result.doc.module }}] {{ result.doc.title }}</strong>
+                                    <br><small>Relevance Score: {{ result.score }}</small>
+                                    <br>{{ result.doc.content }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
 
                 {% if result %}
                     <div class="result-container">
@@ -382,15 +532,30 @@ HTML = """
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
+    rag_results = None
+    
     if request.method == 'POST' and request.form.get('problem') and crew is not None:
         try:
             problem = request.form['problem']
-            result = crew.kickoff(inputs={"problem": problem})
+            
+            # Search knowledge base for relevant information
+            rag_results = search_knowledge_base(problem)
+            rag_context = format_rag_context(rag_results)
+            
+            # Combine user problem with RAG context
+            enhanced_problem = f"{rag_context}\nUSER PROBLEM: {problem}"
+            
+            # Process with AI agents
+            result = crew.kickoff(inputs={"problem": enhanced_problem})
+            
+            print(f"🔍 RAG Search found {len(rag_results)} relevant articles")
+            
         except Exception as e:
             result = f"Error processing request: {str(e)}"
     elif request.method == 'POST' and request.form.get('problem') and crew is None:
         result = "Service temporarily unavailable. Please check configuration."
-    return render_template_string(HTML, result=result, request=request)
+    
+    return render_template_string(HTML, result=result, rag_results=rag_results, request=request)
 
 
 if __name__ == '__main__':
