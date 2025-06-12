@@ -22,7 +22,7 @@ app = Flask(__name__)
 # Static file serving
 @app.route('/static/<filename>')
 def static_files(filename):
-    return send_from_directory('attached_assets', filename)
+    return send_from_directory('static', filename)
 
 # Configuration
 # RAG Knowledge Base - Oracle EPM Documentation and Common Issues
