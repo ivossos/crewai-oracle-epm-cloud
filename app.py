@@ -669,11 +669,7 @@ HTML = """
                 }
             });
 
-            // Upload button click handler
-            const uploadBtn = document.getElementById('upload-btn');
-            uploadBtn.addEventListener('click', () => {
-                fileInput.click();
-            });
+            
 
             // Instant upload button click handler
             const instantUploadBtn = document.getElementById('instant-upload-btn');
@@ -834,9 +830,6 @@ HTML = """
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 10px;">
-                                <button type="button" id="upload-btn" class="upload-button">
-                                    📁 Choose PDF File
-                                </button>
                                 <button type="button" id="instant-upload-btn" class="upload-button" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); box-shadow: 0 5px 15px rgba(255, 107, 107, 0.2);">
                                     ⚡ Upload & Analyze Now
                                 </button>
