@@ -675,25 +675,35 @@ def index():
             
             # Process with AI agents with timeout handling
             try:
-                import signal
+                import threading
+                import time
                 
-                def timeout_handler(signum, frame):
-                    raise TimeoutError("AI processing timeout")
+                result_container = [None]
+                error_container = [None]
                 
-                # Set timeout to 5 minutes (300 seconds)
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(300)
+                def ai_worker():
+                    try:
+                        result_container[0] = crew.kickoff(inputs={"problem": enhanced_problem})
+                    except Exception as e:
+                        error_container[0] = e
                 
-                result = crew.kickoff(inputs={"problem": enhanced_problem})
+                # Start AI processing in separate thread
+                ai_thread = threading.Thread(target=ai_worker)
+                ai_thread.daemon = True
+                ai_thread.start()
                 
-                # Cancel timeout
-                signal.alarm(0)
+                # Wait for completion with 5-minute timeout
+                ai_thread.join(timeout=300)
                 
-                print("✅ AI processing completed successfully")
+                if ai_thread.is_alive():
+                    result = "⏰ Request timeout: The AI agents took too long to process your request. Please try again with a more specific question or contact support."
+                    print("⏰ AI processing timeout occurred")
+                elif error_container[0]:
+                    raise error_container[0]
+                else:
+                    result = result_container[0]
+                    print("✅ AI processing completed successfully")
                 
-            except TimeoutError:
-                result = "⏰ Request timeout: The AI agents took too long to process your request. Please try again with a more specific question or contact support."
-                print("⏰ AI processing timeout occurred")
             except Exception as ai_error:
                 result = f"🤖 AI Processing Error: {str(ai_error)}\n\nPlease try again or contact support if the issue persists."
                 print(f"❌ AI processing error: {ai_error}")
