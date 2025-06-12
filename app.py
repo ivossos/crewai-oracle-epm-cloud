@@ -542,7 +542,7 @@ HTML = """
                 </div>
                 <div>
                     <h1 style="margin: 0; font-size: 2.5em;">CloseWise</h1>
-                    <h2 style="margin: 0; font-size: 1.5em; color: #66ff66; font-weight: 300;">Oracle EPM Support Assistant</h2>
+                    <h2 style="margin: 0; font-size: 1.5em; color: #66ff66; font-weight: 300;">Assistant</h2>
                 </div>
             </div>
             <p>AI-powered support for FCCS, EPBCS, Essbase, Workforce Planning & Free Form Planning</p>
