@@ -545,9 +545,7 @@ HTML = """
     <div class="container">
         <div class="header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 20px;">
-                <div class="logo" style="width: 80px; height: 80px; background: linear-gradient(135deg, #00ff00 0%, #008800 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2em; color: #000; font-weight: bold; box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);">
-                    CW
-                </div>
+                <img src="/static/closewise_logo.png" alt="CloseWise Logo" style="width: 80px; height: 80px; border-radius: 10px; box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);">
                 <div>
                     <h1 style="margin: 0; font-size: 2.5em;">CloseWise</h1>
                     <h2 style="margin: 0; font-size: 1.5em; color: #66ff66; font-weight: 300;">Assistant</h2>
@@ -656,9 +654,17 @@ HTML = """
         </div>
     </div>
 
-    <footer style="background: #1a1a1a; border-top: 1px solid #00ff00; padding: 20px; text-align: center; margin-top: 40px; color: #666;">
-        <p style="margin: 0; font-size: 0.9em;">
+    <footer style="background: #1a1a1a; border-top: 1px solid #00ff00; padding: 30px; text-align: center; margin-top: 40px; color: #666;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px;">
+            <img src="/static/closewise_logo.png" alt="CloseWise" style="width: 40px; height: 40px; border-radius: 5px;">
+            <span style="font-size: 1.2em; color: #00ff00; font-weight: 600;">CloseWise</span>
+        </div>
+        <p style="margin: 0 0 10px 0; font-size: 0.9em; color: #888;">
             © 2024 CloseWise. All rights reserved. | AI-powered Oracle EPM Support Assistant
+        </p>
+        <p style="margin: 0; font-size: 0.8em; color: #666;">
+            For support and inquiries: <a href="mailto:support@closewise.com" style="color: #00ff00; text-decoration: none;">support@closewise.com</a> | 
+            <a href="https://www.closewise.com" style="color: #00ff00; text-decoration: none;">www.closewise.com</a>
         </p>
     </footer>
 </body>
