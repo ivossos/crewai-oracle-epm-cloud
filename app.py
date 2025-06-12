@@ -518,6 +518,7 @@ HTML = """
                 'Workforce specialist examining HR data...',
                 'Essbase guru optimizing performance...',
                 'Free Form analyst designing solutions...',
+                'Groovy script engineer reviewing code...',
                 'Compiling comprehensive response...',
                 'Finalizing recommendations...'
             ];
@@ -551,7 +552,7 @@ HTML = """
                     <h2 style="margin: 0; font-size: 1.5em; color: #66ff66; font-weight: 300;">Assistant</h2>
                 </div>
             </div>
-            <p>AI-powered support for FCCS, EPBCS, Essbase, Workforce Planning & Free Form Planning</p>
+            <p>AI-powered support for FCCS, EPBCS, Essbase, Workforce Planning, Free Form Planning & Groovy Scripting</p>
         </div>
 
         <div class="nav-menu" style="background: #262626; padding: 15px 40px; border-bottom: 1px solid #00ff00; display: flex; gap: 20px;">
@@ -601,6 +602,10 @@ HTML = """
                     <div class="agent-card">
                         <strong>🎨 Free Form Analyst</strong>
                         Custom Modeling
+                    </div>
+                    <div class="agent-card">
+                        <strong>💻 Groovy Script Engineer</strong>
+                        Script Development
                     </div>
                 </div>
 
