@@ -142,18 +142,45 @@ def search_knowledge_base(query, max_results=3):
     return results[:max_results]
 
 def extract_text_from_pdf(pdf_file):
-    """Extract text content from uploaded PDF file"""
+    """Extract text content from uploaded PDF file with detailed validation"""
     try:
-        pdf_reader = PyPDF2.PdfReader(BytesIO(pdf_file.read()))
-        text_content = ""
+        # Read PDF content
+        pdf_content = pdf_file.read()
+        if len(pdf_content) == 0:
+            raise ValueError("PDF file is empty")
         
-        for page_num in range(len(pdf_reader.pages)):
-            page = pdf_reader.pages[page_num]
-            text_content += page.extract_text() + "\n"
+        pdf_reader = PyPDF2.PdfReader(BytesIO(pdf_content))
+        
+        # Check if PDF is encrypted
+        if pdf_reader.is_encrypted:
+            raise ValueError("PDF is password protected and cannot be read")
+        
+        # Check number of pages
+        num_pages = len(pdf_reader.pages)
+        if num_pages == 0:
+            raise ValueError("PDF contains no pages")
+        
+        text_content = ""
+        pages_with_text = 0
+        
+        for page_num in range(num_pages):
+            try:
+                page = pdf_reader.pages[page_num]
+                page_text = page.extract_text()
+                if page_text.strip():
+                    text_content += f"[Page {page_num + 1}]\n{page_text}\n\n"
+                    pages_with_text += 1
+            except Exception as page_error:
+                print(f"Warning: Could not extract text from page {page_num + 1}: {page_error}")
+                continue
+        
+        if pages_with_text == 0:
+            raise ValueError(f"No readable text found in any of the {num_pages} pages. PDF may contain only images or scanned content.")
         
         return text_content.strip()
+        
     except Exception as e:
-        return f"Error reading PDF: {str(e)}"
+        raise Exception(f"PDF processing failed: {str(e)}")
 
 def format_rag_context(search_results):
     """Format search results into context for the AI agents"""
@@ -547,9 +574,15 @@ HTML = """
                 </div>
 
                 {% if pdf_content %}
-                    <div class="result-container" style="background: rgba(240, 248, 255, 0.9); border-left: 5px solid #007bff;">
-                        <h3>📄 PDF Content Processed:</h3>
-                        <pre style="font-size: 0.9em; max-height: 200px; overflow-y: auto;">{{ pdf_content }}</pre>
+                    <div class="result-container" style="
+                        {% if pdf_status == 'success' %}background: rgba(220, 255, 220, 0.9); border-left: 5px solid #28a745;
+                        {% elif pdf_status == 'warning' %}background: rgba(255, 248, 220, 0.9); border-left: 5px solid #ffc107;
+                        {% elif pdf_status == 'error' %}background: rgba(255, 220, 220, 0.9); border-left: 5px solid #dc3545;
+                        {% else %}background: rgba(240, 248, 255, 0.9); border-left: 5px solid #007bff;
+                        {% endif %}
+                    ">
+                        <h3>📄 PDF Processing Status:</h3>
+                        <pre style="font-size: 0.9em; max-height: 200px; overflow-y: auto; white-space: pre-wrap;">{{ pdf_content }}</pre>
                     </div>
                 {% endif %}
 
@@ -664,16 +697,27 @@ def index():
             
             # Handle PDF upload if provided
             pdf_text = ""
+            pdf_status = None
             if 'pdf_file' in request.files:
                 pdf_file = request.files['pdf_file']
-                if pdf_file and pdf_file.filename.endswith('.pdf'):
-                    try:
-                        pdf_text = extract_text_from_pdf(pdf_file)
-                        pdf_content = f"Uploaded PDF content (first 500 chars): {pdf_text[:500]}..."
-                        print(f"📄 PDF uploaded: {pdf_file.filename} - {len(pdf_text)} characters extracted")
-                    except Exception as pdf_error:
-                        print(f"❌ PDF processing error: {pdf_error}")
-                        pdf_content = "Error processing PDF file"
+                if pdf_file and pdf_file.filename:
+                    if not pdf_file.filename.endswith('.pdf'):
+                        pdf_content = f"❌ Error: '{pdf_file.filename}' is not a PDF file. Please upload a .pdf file."
+                        pdf_status = "error"
+                    else:
+                        try:
+                            pdf_text = extract_text_from_pdf(pdf_file)
+                            if len(pdf_text.strip()) < 10:
+                                pdf_content = f"⚠️ Warning: PDF '{pdf_file.filename}' appears to be empty or contains mostly images/unreadable text. Only {len(pdf_text)} characters extracted."
+                                pdf_status = "warning"
+                            else:
+                                pdf_content = f"✅ Successfully processed PDF '{pdf_file.filename}'\n📊 Extracted {len(pdf_text)} characters\n📄 Preview: {pdf_text[:300]}..."
+                                pdf_status = "success"
+                            print(f"📄 PDF uploaded: {pdf_file.filename} - {len(pdf_text)} characters extracted")
+                        except Exception as pdf_error:
+                            print(f"❌ PDF processing error: {pdf_error}")
+                            pdf_content = f"❌ Error processing PDF '{pdf_file.filename}': {str(pdf_error)}"
+                            pdf_status = "error"
             
             # Search knowledge base for relevant information
             search_query = f"{problem} {pdf_text[:200]}" if pdf_text else problem
@@ -747,7 +791,7 @@ def index():
     elif request.method == 'POST' and request.form.get('problem') and crew is None:
         result = "Service temporarily unavailable. Please check configuration."
     
-    return render_template_string(HTML, result=result, rag_results=rag_results, pdf_content=pdf_content, request=request)
+    return render_template_string(HTML, result=result, rag_results=rag_results, pdf_content=pdf_content, pdf_status=pdf_status, request=request)
 
 
 if __name__ == '__main__':
