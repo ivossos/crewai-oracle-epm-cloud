@@ -680,9 +680,9 @@ def index():
                 def timeout_handler(signum, frame):
                     raise TimeoutError("AI processing timeout")
                 
-                # Set timeout to 90 seconds
+                # Set timeout to 5 minutes (300 seconds)
                 signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(90)
+                signal.alarm(300)
                 
                 result = crew.kickoff(inputs={"problem": enhanced_problem})
                 
